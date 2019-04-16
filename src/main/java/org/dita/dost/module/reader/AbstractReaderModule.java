@@ -35,6 +35,9 @@ import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 import java.io.*;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -107,7 +110,9 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
     ContentHandler nullHandler;
     private TempFileNameScheme tempFileNameScheme;
     /** Absolute path to input file. */
+    @Deprecated
     URI rootFile;
+    List<URI> rootFiles;
     /** Subject scheme absolute file paths. */
     private final Set<URI> schemeSet = new HashSet<>(128);
     /** Subject scheme usage. Key is absolute file path, value is set of applicable subject schemes. */
@@ -147,6 +152,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
         listFilter = new GenListModuleReader();
         listFilter.setLogger(logger);
         listFilter.setPrimaryDitamap(rootFile);
+        listFilter.setRootDir(baseInputDir);
         listFilter.setJob(job);
         listFilter.setFormatFilter(formatFilter);
 
@@ -256,23 +262,49 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
             assert baseInputDir.isAbsolute();
         }
 
-        URI ditaInput = toURI(input.getAttribute(ANT_INVOKER_PARAM_INPUTMAP));
-        ditaInput = ditaInput != null ? ditaInput : job.getInputFile();
-        if (ditaInput.isAbsolute()) {
-            rootFile = ditaInput;
-        } else if (ditaInput.getPath() != null && ditaInput.getPath().startsWith(URI_SEPARATOR)) {
-            rootFile = setScheme(ditaInput, "file");
-        } else if (baseInputDir != null) {
-            rootFile = baseInputDir.resolve(ditaInput);
+        if (input.getAttribute("inputs") != null) {
+            rootFiles = Arrays.stream(input.getAttribute("inputs").split(File.pathSeparator))
+                    .map(in -> Paths.get(in).toUri())
+                    .collect(Collectors.toList());
+//            URI ditaInput = toURI();
+//            ditaInput = ditaInput != null ? ditaInput : job.getInputFile();
+//            if (ditaInput.isAbsolute()) {
+//                rootFile = ditaInput;
+//            } else if (ditaInput.getPath() != null && ditaInput.getPath().startsWith(URI_SEPARATOR)) {
+//                rootFile = setScheme(ditaInput, "file");
+//            } else if (baseInputDir != null) {
+//                rootFile = baseInputDir.resolve(ditaInput);
+//            } else {
+//                rootFile = basedir.toURI().resolve(ditaInput);
+//            }
+            if (baseInputDir == null) {
+                baseInputDir = rootFiles.stream()
+                        .map(f -> f.resolve("."))
+                        .reduce(rootFiles.get(0).resolve("."), (left, right) -> URLUtils.getBase(left, right));
+            }
+            rootFile = baseInputDir.resolve("_dummy");
+            job.setInputFile(rootFile);
+            job.setInputDir(baseInputDir);
         } else {
-            rootFile = basedir.toURI().resolve(ditaInput);
-        }
-        job.setInputFile(rootFile);
+            URI ditaInput = toURI(input.getAttribute(ANT_INVOKER_PARAM_INPUTMAP));
+            ditaInput = ditaInput != null ? ditaInput : job.getInputFile();
+            if (ditaInput.isAbsolute()) {
+                rootFile = ditaInput;
+            } else if (ditaInput.getPath() != null && ditaInput.getPath().startsWith(URI_SEPARATOR)) {
+                rootFile = setScheme(ditaInput, "file");
+            } else if (baseInputDir != null) {
+                rootFile = baseInputDir.resolve(ditaInput);
+            } else {
+                rootFile = basedir.toURI().resolve(ditaInput);
+            }
+            rootFiles = Collections.singletonList(rootFile);
+            job.setInputFile(rootFile);
 
-        if (baseInputDir == null) {
-            baseInputDir = rootFile.resolve(".");
+            if (baseInputDir == null) {
+                baseInputDir = rootFile.resolve(".");
+            }
+            job.setInputDir(baseInputDir);
         }
-        job.setInputDir(baseInputDir);
 
         profilingEnabled = Optional.ofNullable(input.getAttribute(ANT_INVOKER_PARAM_PROFILING_ENABLED))
                 .map(Boolean::parseBoolean)
@@ -328,7 +360,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
                     .src(currentFile)
                     .uri(rel)
                     .result(currentFile)
-                    .isInput(currentFile.equals(rootFile))
+                    .isInput(rootFiles.contains(currentFile))
                     .build();
             job.add(stub);
         }
@@ -363,7 +395,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
             if (listFilter.isValidInput()) {
                 processParseResult(currentFile);
                 categorizeCurrentFile(ref);
-            } else if (!currentFile.equals(rootFile)) {
+            } else if (!rootFiles.contains(currentFile)) {
                 logger.warn(MessageUtils.getMessage("DOTJ021W", params).toString());
                 failureList.add(currentFile);
             }
@@ -374,7 +406,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
             if (inner != null && inner instanceof DITAOTException) {
                 throw (DITAOTException) inner;
             }
-            if (currentFile.equals(rootFile)) {
+            if (rootFiles.contains(currentFile)) {
                 throw new DITAOTException(MessageUtils.getMessage("DOTJ012F", params).toString() + ": " + sax.getMessage(), sax);
             } else if (processingMode == Mode.STRICT) {
                 throw new DITAOTException(MessageUtils.getMessage("DOTJ013E", params).toString() + ": " + sax.getMessage(), sax);
@@ -384,14 +416,14 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
             failureList.add(currentFile);
         } catch (final FileNotFoundException e) {
             if (!exists(currentFile)) {
-                if (currentFile.equals(rootFile)) {
+                if (rootFiles.contains(currentFile)) {
                     throw new DITAOTException(MessageUtils.getMessage("DOTA069F", params).toString(), e);
                 } else if (processingMode == Mode.STRICT) {
                     throw new DITAOTException(MessageUtils.getMessage("DOTX008E", params).toString(), e);
                 } else {
                     logger.error(MessageUtils.getMessage("DOTX008E", params).toString());
                 }
-            } else if (currentFile.equals(rootFile)) {
+            } else if (rootFiles.contains(currentFile)) {
                 throw new DITAOTException(MessageUtils.getMessage("DOTJ078F", params).toString() + " Cannot load file: " + e.getMessage(), e);
             } else if (processingMode == Mode.STRICT) {
                 throw new DITAOTException(MessageUtils.getMessage("DOTJ079E", params).toString() + " Cannot load file: " + e.getMessage(), e);
@@ -400,7 +432,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
             }
             failureList.add(currentFile);
         } catch (final Exception e) {
-            if (currentFile.equals(rootFile)) {
+            if (rootFiles.contains(currentFile)) {
                 throw new DITAOTException(MessageUtils.getMessage("DOTJ012F", params).toString() + ": " + e.getMessage(),  e);
             } else if (processingMode == Mode.STRICT) {
                 throw new DITAOTException(MessageUtils.getMessage("DOTJ013E", params).toString() + ": " + e.getMessage(), e);
@@ -421,7 +453,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
             }
         }
 
-        if (!listFilter.isValidInput() && currentFile.equals(rootFile)) {
+        if (!listFilter.isValidInput() && rootFiles.contains(currentFile)) {
             if (validate) {
                 // stop the build if all content in the input file was filtered out.
                 throw new DITAOTException(MessageUtils.getMessage("DOTJ022F", params).toString());
@@ -583,7 +615,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
                 pureConrefTargets.add(target);
             }
         }
-        pureConrefTargets.remove(rootFile);
+        pureConrefTargets.removeAll(rootFiles);
         conrefTargetSet = pureConrefTargets;
 
         // Remove pure conref targets from fullTopicSet
@@ -701,13 +733,15 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
             }
         }
 
-        final FileInfo root = job.getFileInfo(rootFile);
-        if (root == null) {
-            throw new RuntimeException("Unable to set input file to job configuration");
+        for (final URI f : rootFiles) {
+            final FileInfo root = job.getFileInfo(f);
+            if (root == null) {
+                throw new RuntimeException("Unable to set input file to job configuration");
+            }
+            job.add(new FileInfo.Builder(root)
+                    .isInput(true)
+                    .build());
         }
-        job.add(new FileInfo.Builder(root)
-                .isInput(true)
-                .build());
 
         try {
             logger.info("Serializing job specification");

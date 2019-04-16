@@ -24,6 +24,7 @@ See the accompanying LICENSE file for applicable license.
                   map-clean-map,
                   clean-preprocess,
                   copy-files2,
+                  preprocess.post,
                   {depend.preprocess.post}">
     <dirname property="_dita.map.output.dir" file="${dita.output.dir}/${user.input.file}" />
     <dirname property="_dita.map.temp.dir" file="${dita.temp.dir}/${user.input.file}" />
@@ -76,6 +77,7 @@ See the accompanying LICENSE file for applicable license.
 
                   clean-preprocess,
                   copy-files2,
+                  preprocess.post,
                   {depend.preprocess.post}">
     <dirname property="_dita.map.output.dir" file="${dita.output.dir}/${user.input.file}" />
     <dirname property="_dita.map.temp.dir" file="${dita.temp.dir}/${user.input.file}" />
@@ -96,26 +98,7 @@ See the accompanying LICENSE file for applicable license.
         </and>
       </condition>
     </dita-ot-fail>
-
-    <!-- First input file -->
-    <local name="input.first"/>
-    <pathconvert property="input.first">
-      <first>
-        <path path="${args.input}" if:set="args.input"/>
-        <path path="${args.inputs}" if:set="args.inputs"/>
-      </first>
-    </pathconvert>
-    <!-- Root filename -->
-    <basename property="dita.input.filename" file="${input.first}" />
-    <!-- Root filename without file extension -->
-    <pathconvert property="dita.map.filename.root">
-      <path path="${dita.input.filename}"/>
-      <chainedmapper>
-        <mapper type="flatten"/>
-        <mapper type="regexp" from="^(.+)(\..+?)$$" to="\1"/>
-      </chainedmapper>
-    </pathconvert>
-    <property name="dita.topic.filename.root" value="${dita.map.filename.root}"/>
+    <property name="args.inputs" value="${args.input}"/>
     
     <echo level="info">*****************************************************************</echo>
     <echo level="info" if:set="args.input">* input = ${args.input}</echo>
@@ -262,9 +245,10 @@ See the accompanying LICENSE file for applicable license.
   <target name="topic-reader"
     description="Generate file list">
     <pipeline message="Generate list." taskname="topic-reader"
-              inputmap="${args.input}">
+              inputmap="${args.inputs}">
       <module class="org.dita.dost.module.reader.TopicReaderModule">
         <param name="inputdir" location="${args.input.dir}" if:set="args.input.dir"/>
+        <param name="inputs" value="${args.inputs}" if:set="args.inputs"/>
         <param name="ditadir" location="${dita.dir}"/>
         <!--<param name="ditaval" location="${dita.input.valfile}" if:set="dita.input.valfile"/>-->
         <param name="validate" value="${validate}"/>

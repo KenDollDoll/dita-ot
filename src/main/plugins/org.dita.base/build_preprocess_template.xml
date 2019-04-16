@@ -40,6 +40,7 @@ See the accompanying LICENSE file for applicable license.
                   topicpull,
                   clean-map,
                   copy-files,
+                  preprocess.post,
                   {depend.preprocess.post}"
     dita:extension="depends org.dita.dost.platform.InsertDependsAction"
     description="Preprocessing ended" />
@@ -53,16 +54,25 @@ See the accompanying LICENSE file for applicable license.
         </and>
       </condition>
     </dita-ot-fail>
+    <property name="args.inputs" value="${args.input}"/>
+    
+    <echo level="info">*****************************************************************</echo>
+    <echo level="info" if:set="args.input">* input = ${args.input}</echo>
+    <echo level="info" if:set="args.inputs">* inputs = ${args.inputs}</echo>
+    <echo level="info">*****************************************************************</echo>
+  </target>
 
+  <target name="preprocess.post">
     <!-- First input file -->
     <local name="input.first"/>
     <pathconvert property="input.first">
       <first>
-        <path path="${args.input}" if:set="args.input"/>
+        <!--<path path="${args.input}" if:set="args.input"/>-->
         <path path="${args.inputs}" if:set="args.inputs"/>
       </first>
     </pathconvert>
     <!-- Root filename -->
+    <local name="dita.input.filename"/>
     <basename property="dita.input.filename" file="${input.first}" />
     <!-- Root filename without file extension -->
     <pathconvert property="dita.map.filename.root">
@@ -73,11 +83,6 @@ See the accompanying LICENSE file for applicable license.
       </chainedmapper>
     </pathconvert>
     <property name="dita.topic.filename.root" value="${dita.map.filename.root}"/>
-    
-    <echo level="info">*****************************************************************</echo>
-    <echo level="info" if:set="args.input">* input = ${args.input}</echo>
-    <echo level="info" if:set="args.inputs">* inputs = ${args.inputs}</echo>
-    <echo level="info">*****************************************************************</echo>
   </target>
   
   <!-- clean-temp
@@ -123,7 +128,7 @@ See the accompanying LICENSE file for applicable license.
     unless="preprocess.gen-list.skip"
     description="Generate file list">
     <pipeline message="Generate list." taskname="gen-list"
-      inputmap="${args.input}">
+      inputmap="${args.inputs}">
       <module class="org.dita.dost.module.GenMapAndTopicListModule">
         <param name="inputdir" location="${args.input.dir}" if:set="args.input.dir"/>
         <param name="ditadir" location="${dita.dir}"/>
@@ -217,15 +222,11 @@ See the accompanying LICENSE file for applicable license.
           unless="preprocess.profile.skip"
           description="Profile input files">
     <pipeline message="Profile filtering." taskname="profile"
-              inputmap="${args.input}">
+              inputmap="${args.inputs}">
       <module class="org.dita.dost.module.FilterModule">
         <ditafileset format="dita"/>
         <ditafileset format="ditamap" input="true"/>
-        <!--param name="ditadir" location="${dita.dir}"/-->
         <param name="ditaval" location="${dita.input.valfile}" if:set="dita.input.valfile"/>
-        <!--param name="inputdir" location="${args.input.dir}" if:set="args.input.dir"/-->
-        <!--param name="outputdir" location="${dita.output.dir}"/-->
-        <!--param name="setsystemid" value="${args.xml.systemid.set}"/-->
         <param name="transtype" value="${transtype}"/>
       </module>
     </pipeline>
