@@ -103,18 +103,21 @@ final class KeyrefModule extends AbstractPipelineModuleImpl {
             tempFileNameScheme.setBaseDir(job.getInputDir());
             initFilters();
 
-            final Document doc = readMap();
 
             final KeyrefReader reader = new KeyrefReader();
             reader.setLogger(logger);
-            final Job.FileInfo in = job.getFileInfo(fi -> fi.isInput).iterator().next();
-            final URI mapFile = in.uri;
-            logger.info("Reading " + job.tempDirURI.resolve(mapFile).toString());
-            reader.read(job.tempDirURI.resolve(mapFile), doc);
 
-            final KeyScope rootScope = reader.getKeyDefinition();
-            final List<ResolveTask> jobs = collectProcessingTopics(fis, rootScope, doc);
-            writeMap(doc);
+            final List<ResolveTask> jobs = new ArrayList<>();
+            for (final Job.FileInfo in : job.getFileInfo(fi -> fi.isInput)) {
+                final Document doc = readMap(in);
+                final URI mapFile = in.uri;
+                logger.info("Reading " + job.tempDirURI.resolve(mapFile).toString());
+                reader.read(job.tempDirURI.resolve(mapFile), doc);
+
+                final KeyScope rootScope = reader.getKeyDefinition();
+                jobs.addAll(collectProcessingTopics(fis, rootScope, doc));
+                writeMap(doc);
+            }
 
             transtype = input.getAttribute(ANT_INVOKER_EXT_PARAM_TRANSTYPE);
             delayConrefUtils = transtype.equals(INDEX_TYPE_ECLIPSEHELP) ? new DelayConrefUtils() : null;
@@ -389,10 +392,9 @@ final class KeyrefModule extends AbstractPipelineModuleImpl {
         }
     }
 
-    private Document readMap() throws DITAOTException {
+    private Document readMap(final FileInfo input) throws DITAOTException {
         InputSource in = null;
         try {
-            final FileInfo input = job.getFileInfo(fi -> fi.isInput).iterator().next();
             in = new InputSource(job.tempDirURI.resolve(input.uri).toString());
             return XMLUtils.getDocumentBuilder().parse(in);
         } catch (final Exception e) {
