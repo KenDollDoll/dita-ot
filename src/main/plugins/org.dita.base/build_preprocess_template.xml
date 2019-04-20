@@ -119,6 +119,7 @@ See the accompanying LICENSE file for applicable license.
       inputmap="${args.inputs}">
       <module class="org.dita.dost.module.GenMapAndTopicListModule">
         <param name="inputdir" location="${args.input.dir}" if:set="args.input.dir"/>
+        <param name="inputs" value="${args.inputs}" if:set="args.inputs"/>
         <param name="ditadir" location="${dita.dir}"/>
         <param name="validate" value="${validate}"/>
         <param name="generatecopyouter" value="${generate.copy.outer}"/>
