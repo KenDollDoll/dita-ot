@@ -310,7 +310,7 @@ public class Main extends org.apache.tools.ant.Main implements AntMain {
                     throw new BuildException("");
                     //justPrintUsage = true;
                 }
-                if (!definedProps.containsKey("args.input")) {
+                if (!definedProps.containsKey("args.input") && !definedProps.containsKey("args.inputs")) {
                     printErrorMessage("Error: Input file not defined");
                     printUsage();
                     throw new BuildException("");

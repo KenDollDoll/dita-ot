@@ -326,7 +326,9 @@ final class ArgumentParser {
                 targets.addElement(arg);
             }
         }
-        if (!inputs.isEmpty()) {
+        if (inputs.size() > 1) {
+            definedProps.put("args.inputs", String.join(File.pathSeparator, inputs));
+        } else if (inputs.size() == 1) {
             definedProps.put("args.input", inputs.get(0));
         }
 
