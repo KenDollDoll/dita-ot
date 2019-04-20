@@ -737,6 +737,7 @@ public abstract class AbstractReaderModule extends AbstractPipelineModuleImpl {
                     .build());
         } else {
             job.add(new FileInfo.Builder()
+                    .src(rootFile)
                     .uri(rootTemp)
                     .format(ATTR_FORMAT_VALUE_DITAMAP)
                     .isInput(true)
