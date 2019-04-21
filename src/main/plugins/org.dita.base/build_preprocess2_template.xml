@@ -98,7 +98,7 @@ See the accompanying LICENSE file for applicable license.
         </and>
       </condition>
     </dita-ot-fail>
-    <property name="args.inputs" value="${args.input}"/>
+    <!--property name="args.inputs" value="${args.input}"/-->
     
     <echo level="info">*****************************************************************</echo>
     <echo level="info" if:set="args.input">* input = ${args.input}</echo>
@@ -245,7 +245,7 @@ See the accompanying LICENSE file for applicable license.
   <target name="topic-reader"
     description="Generate file list">
     <pipeline message="Generate list." taskname="topic-reader"
-              inputmap="${args.inputs}">
+              inputmap="${args.input}">
       <module class="org.dita.dost.module.reader.TopicReaderModule">
         <param name="inputdir" location="${args.input.dir}" if:set="args.input.dir"/>
         <param name="inputs" value="${args.inputs}" if:set="args.inputs"/>
