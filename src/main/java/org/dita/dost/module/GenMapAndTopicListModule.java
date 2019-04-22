@@ -138,8 +138,8 @@ public final class GenMapAndTopicListModule extends SourceReaderModule {
     private TempFileNameScheme tempFileNameScheme;
 
     /** Absolute path to input file. */
-    @Deprecated
     private URI rootFile;
+    /** List of absolute input files. */
     List<URI> rootFiles;
     /** File currently being processed */
     private URI currentFile;
@@ -227,12 +227,14 @@ public final class GenMapAndTopicListModule extends SourceReaderModule {
      * @throws DITAOTException if writing output fails
      */
     private void combine() throws DITAOTException {
-        final ReaderUtils utils = new ReaderUtils();
-        utils.setJob(job);
-        utils.setLogger(logger);
-        utils.setTempFileNameScheme(tempFileNameScheme);
+        if (rootFiles.size() > 1) {
+            final ReaderUtils utils = new ReaderUtils();
+            utils.setJob(job);
+            utils.setLogger(logger);
+            utils.setTempFileNameScheme(tempFileNameScheme);
 
-        utils.combine(rootFile, rootFiles);
+            utils.combine(rootFile, rootFiles);
+        }
     }
 
     /**
@@ -317,7 +319,9 @@ public final class GenMapAndTopicListModule extends SourceReaderModule {
                         .map(f -> f.resolve("."))
                         .reduce(rootFiles.get(0).resolve("."), (left, right) -> URLUtils.getBase(left, right));
             }
-            rootFile = baseInputDir.resolve(ReaderUtils.GEN_MAP);
+            rootFile = rootFiles.size() == 1
+                    ? rootFiles.get(0)
+                    : baseInputDir.resolve(ReaderUtils.GEN_MAP);
             job.setInputFile(rootFile);
             job.setInputDir(baseInputDir);
         } else {
