@@ -16,6 +16,7 @@ import org.apache.tools.ant.Project;
 import org.apache.tools.ant.util.FileUtils;
 import org.dita.dost.platform.Plugins;
 import org.dita.dost.util.Configuration;
+import org.dita.dost.util.URLUtils;
 import org.dita.dost.util.XMLUtils;
 import org.w3c.dom.Element;
 
@@ -327,7 +328,7 @@ final class ArgumentParser {
             }
         }
         if (inputs.size() > 1) {
-            definedProps.put("args.inputs", String.join(File.pathSeparator, inputs));
+            definedProps.put("args.inputs", String.join(" ", inputs));
         } else if (inputs.size() == 1) {
             definedProps.put("args.input", inputs.get(0));
         }
@@ -492,7 +493,8 @@ final class ArgumentParser {
         if (entry.getValue() == null) {
             throw new BuildException("Missing value for input " + entry.getKey());
         }
-        inputs.add(argument.getValue((String) entry.getValue()));
+        final String value = argument.getValue(entry.getValue());
+        inputs.add(URLUtils.toURI(value).toString());
     }
 
     /**
